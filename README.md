@@ -3,6 +3,7 @@
 A library providing word, phrase and sentence segmentation for natural language text.
 
 * Fully **multilingual**. Covers all languages and writing systems representable as Unicode characters. When needed, applies second stage processing using a [WebAssembly port](https://github.com/echogarden-project/icu-segmentation-wasm) of the [ICU C++ Library](https://icu.unicode.org/) (if available) for handling difficult to segment east-Asian languages, like Chinese, Japanese, Thai and Khmer
+* Segments **mixtures of different languages**, including mixtures of different scripts, like Chinese, Cyrillic and Latin, all within a single sentence or phrase, without needing to explicitly specify a particular language
 * Includes **built-in suppression lists** for language-specific abbreviations and special word patterns. Currently included languages are English, German, Spanish, French, Italian, Portuguese and Russian, mostly extracted from the [CLDR JSON datasets](https://github.com/unicode-org/cldr-json)
 * Accepts **user-provided suppression lists**
 * **Very fast**. For most languages, word segmentation is done mostly via a single regular expression, dynamically built for the given options, and suppression set. Majority of processing is done within the JavaScript regular expression engine, or within optimized WebAssembly binaries
@@ -14,6 +15,14 @@ A library providing word, phrase and sentence segmentation for natural language 
 npm install @echogarden/text-segmentation
 ```
 
+To enable fine-grained segmentation of Chinese, Japanese, Thai and Khmer words, install this additional package:
+
+```
+npm install @echogarden/icu-segmentation-wasm
+```
+
+(`@echogarden/icu-segmentation-wasm` is a 27 MB package, and is set as a [peer dependency](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#peerdependencies). For size reasons, it's not installed by default, to ease on deployments that may not require it - especially browsers)
+
 ## Usage
 
 ### Splitting to words
@@ -21,7 +30,7 @@ npm install @echogarden/text-segmentation
 import { splitToWords } from '@echogarden/text-segmentation'
 
 const wordSequence: WordSequence =
-  splitToWords('Hello, world! How are you doing today?', { language: 'en' })
+  await splitToWords('Hello, world! How are you doing today?', { language: 'en' })
 
 console.log(wordSequence.words)
 ```
@@ -30,6 +39,21 @@ Prints a list of words (including spaces and punctuation):
 ```ts
 ['Hello', ',', ' ', 'world', '!', ' ', 'How',' ', 'are', ' ', 'you', ' ', 'doing', ' ', 'today', '?']
 ```
+
+### Language mixtures
+
+A language option provided like `language: 'en'` is only used for loading suppression dictionaries. You can still include mixtures of different languages and scripts in the same input text
+
+```ts
+await splitToWords('Hello world! Привет мир! 你好世界！')
+```
+
+Producing:
+```ts
+['Hello', ' ', 'world', '!', ' ', 'Привет', ' ', 'мир', '!', ' ', '你好', '世界', '！']
+```
+
+### Getting detailed metadata
 
 To get more detailed information,
 ```ts
@@ -63,7 +87,7 @@ prints a list of objects, including metadata on each word:
 
 ```ts
 const result: SegmentationResult =
-  segmentText(`Hello, world! How are you doing today?`, { language: 'en' })
+  await segmentText(`Hello, world! How are you doing today?`)
 ```
 
 `result` is a nested object containing a breakdown of sentences, phrases and words in the given text. It is described by these TypeScript types:
@@ -100,7 +124,7 @@ interface Range {
 If you have a pre-existing `WordSequence` object (or possibly a modified form of an existing one), you can segment it to sentences and phrases without needing to recompute the word boundaries:
 
 ```ts
-const result: SegmentationResult = segmentWordSequence(wordSequence: WordSequence)
+const result: SegmentationResult = await segmentWordSequence(wordSequence: WordSequence)
 ```
 
 In this way, you can also specify custom word boundaries, and the phrase and sentence segmentation operations would ensure that break characters are never identified within the spans of non-punctuation words.
@@ -129,8 +153,6 @@ There are several types of accepted patterns, evaluated in this order:
 #### Further segmentation for words containing Chinese, Japanese, Thai, or Khmer characters
 
 This requires the the `@echogarden/icu-segmentation-wasm` package to be **manually** installed.
-
-(`@echogarden/icu-segmentation-wasm` is a 27 MB package, and is set as a [peer dependency](https://docs.npmjs.com/cli/v10/configuring-npm/package-json#peerdependencies). For size reasons, it's not installed by default, to ease on deployments that may not require it - especially browsers)
 
 * Iterate each previously identified word span
 * Check if the word span contains at at least one codepoint belonging to the supported east Asian languages character ranges
