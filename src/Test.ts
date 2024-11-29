@@ -5,8 +5,8 @@ const log = console.log
 
 async function test1() {
 	{
-		const wordSequence = await splitToWords('Hello, world! How are you doing today?')
-		//console.log(wordSequence.entries)
+		const wordSequence = await splitToWords('Hello world! Привет мир! 你好世界！')
+		console.log(JSON.stringify(wordSequence.words))
 	}
 
 	const { readFileSync, writeFileSync } = await import('fs')
