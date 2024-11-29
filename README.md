@@ -26,7 +26,8 @@ const wordSequence: WordSequence =
 console.log(wordSequence.words)
 ```
 Prints a list of words (including spaces and punctuation):
-```json
+
+```ts
 ['Hello', ',', ' ', 'world', '!', ' ', 'How',' ', 'are', ' ', 'you', ' ', 'doing', ' ', 'today', '?']
 ```
 
@@ -37,7 +38,7 @@ console.log(wordSequence.entries)
 
 prints a list of objects, including metadata on each word:
 
-```json
+```ts
 [
   { text: 'Hello', startOffset: 0, endOffset: 5, isPunctuation: false },
   { text: ',', startOffset: 5, endOffset: 6, isPunctuation: true },
