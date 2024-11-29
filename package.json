@@ -1,0 +1,55 @@
+{
+	"name": "@echogarden/text-segmentation",
+	"version": "0.1.0",
+	"description": "A library for multilingual word, phrase and sentence segmentation.",
+	"author": "Rotem Dan",
+	"license": "MIT",
+	"keywords": [
+		"text segmentation",
+		"word segmentation",
+		"word boundary detection",
+		"phrase segmentation",
+		"phrase boundary detection",
+		"sentence segmentation",
+		"sentence boundary detection"
+	],
+	"publishConfig": {
+		"access": "public"
+	},
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/echogarden-project/text-segmentation"
+	},
+	"bugs": {
+		"url": "https://github.com/echogarden-project/text-segmentation/issues"
+	},
+	"main": "./dist/TextSegmentation.js",
+	"type": "module",
+	"files": [
+		"dist",
+		"src",
+		"tsconfig.json",
+		"LICENSE.md",
+		"README.md"
+	],
+	"scripts": {
+		"test": "node dist/Test.js"
+	},
+	"//dependencies": {
+		"regexp-composer": "../../regexp-composer"
+	},
+	"dependencies": {
+		"regexp-composer": "^0.1.2"
+	},
+	"peerDependencies": {
+		"@echogarden/icu-segmentation-wasm": "^0.1.0"
+	},
+	"peerDependenciesMeta": {
+		"@echogarden/icu-segmentation-wasm": {
+			"optional": true
+		}
+	},
+	"devDependencies": {
+		"@types/node": "^22.10.1"
+	}
+}
