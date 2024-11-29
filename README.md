@@ -42,7 +42,7 @@ Prints a list of words (including spaces and punctuation):
 
 ### Language mixtures
 
-A language option provided like `language: 'en'` is only used for loading suppression dictionaries. You can still include mixtures of different languages and scripts in the same input text
+A language option provided like `language: 'en'` is only used for loading suppression dictionaries. You can still include mixtures of different languages and scripts within the same input text:
 
 ```ts
 await splitToWords('Hello world! Привет мир! 你好世界！')
