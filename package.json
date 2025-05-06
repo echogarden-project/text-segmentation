@@ -1,6 +1,6 @@
 {
 	"name": "@echogarden/text-segmentation",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A library for multilingual word, phrase and sentence segmentation.",
 	"author": "Rotem Dan",
 	"license": "MIT",
@@ -39,7 +39,7 @@
 		"regexp-composer": "../../regexp-composer"
 	},
 	"dependencies": {
-		"regexp-composer": "^0.1.2"
+		"regexp-composer": "^0.2.2"
 	},
 	"peerDependencies": {
 		"@echogarden/icu-segmentation-wasm": "^0.1.0"
@@ -50,6 +50,6 @@
 		}
 	},
 	"devDependencies": {
-		"@types/node": "^22.10.1"
+		"@types/node": "^22.15.12"
 	}
 }
