@@ -5,6 +5,7 @@ import { eastAsianCharRangesRegExp } from './EastAsianCharacterPatterns.js'
 import { WordSequence } from './WordSequence.js'
 
 export { cldrSuppressions } from './Suppressions.js'
+export { WordSequence, type WordEntry } from './WordSequence.js'
 
 export async function segmentText(text: string, options?: SegmentationOptions) {
 	options = { ...defaultSegmentationOptions, ...(options ?? {}) }
