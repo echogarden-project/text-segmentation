@@ -40,6 +40,10 @@ export class WordSequence {
 		return this.entries[index]
 	}
 
+	clone() {
+		return this.slice(0, this.length)
+	}
+
 	slice(startIndex: number, endIndex: number) {
 		const slicedSequence = new WordSequence()
 

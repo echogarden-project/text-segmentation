@@ -113,63 +113,55 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 	return result
 }
 
+const cachedWordSplitterRegExps = new Map<string, RegExp>()
+
 export async function splitToWords(text: string, options?: SegmentationOptions) {
-	options = { ...defaultSegmentationOptions, ...(options ?? {}) }
+	if (!options) {
+		options = {}
+	}
 
-	const cldrSuppressionsForLang = cldrSuppressions[options.language ?? ''] ?? []
-	const contractionSuppressionsForLang = leadingApostropheContractionSuppressions[options.language ?? ''] ?? []
-	const contractionSuppressionsForLangWithSingleQuote = contractionSuppressionsForLang.map(str => str.replaceAll(`'`, `’`))
-	const customSuppressions = options.customSuppressions ?? []
+	options = { ...defaultSegmentationOptions, ...options }
 
-	let suppressions = [
-		...customSuppressions,
-		...cldrSuppressionsForLang,
-		...contractionSuppressionsForLang,
-		...contractionSuppressionsForLangWithSingleQuote,
-		...nounSuppressions,
-		...tldSuppressions,
-	]
+	const optionsAsJson = JSON.stringify(options)
 
-	const wordPattern = buildWordSplitterPattern([
-		...suppressions,
-		...suppressions.map(word => word.toLocaleLowerCase()),
-		...suppressions.map(word => word.toLocaleUpperCase()),
-	])
+	let wordSplitterRegExp = cachedWordSplitterRegExps.get(optionsAsJson)
 
-	const wordSplitterRegExp = buildRegExp(wordPattern, { global: true })
+	if (!wordSplitterRegExp) {
+		wordSplitterRegExp = buildWordSplitterRegExpForOptions(options)
 
-	//console.log(`Encoded pattern: ${wordSplitterRegExp.source}\n`)
+		cachedWordSplitterRegExps.set(optionsAsJson, wordSplitterRegExp)
+	}
 
 	let wordSequence = new WordSequence()
 
-	function addNonWordsBetween(startOffset: number, endOffset: number) {
-		const nonWordSubstring = text.substring(startOffset, endOffset)
+	function addPunctuationWordsBetween(startOffset: number, endOffset: number) {
+		const punctuationWordSubstring = text.substring(startOffset, endOffset)
 
 		let charOffset = startOffset
-		let nonwordStartOffset = startOffset
+		let punctuationWordStartOffset = startOffset
 
-		function addNonWordIfNeeded() {
-			if (charOffset > nonwordStartOffset) {
-				wordSequence.addWordEntry(text, nonwordStartOffset, charOffset, true)
-				nonwordStartOffset = charOffset
+		function addPunctuationWordIfNeeded() {
+			if (charOffset > punctuationWordStartOffset) {
+				wordSequence.addWordEntry(text, punctuationWordStartOffset, charOffset, true)
+				punctuationWordStartOffset = charOffset
 			}
 		}
 
-		for (const char of nonWordSubstring) {
+		for (const char of punctuationWordSubstring) {
 			if (char === ' ') {
 				charOffset += 1
 
 				continue
 			}
 
-			addNonWordIfNeeded()
+			addPunctuationWordIfNeeded()
 
 			charOffset += char.length
 
-			addNonWordIfNeeded()
+			addPunctuationWordIfNeeded()
 		}
 
-		addNonWordIfNeeded()
+		addPunctuationWordIfNeeded()
 	}
 
 	const wordMatches = text.matchAll(wordSplitterRegExp)
@@ -183,7 +175,7 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 			const matchEndOffset = offsets[1]
 
 			if (matchStartOffset > lastMatchEndOffset) {
-				addNonWordsBetween(lastMatchEndOffset, matchStartOffset)
+				addPunctuationWordsBetween(lastMatchEndOffset, matchStartOffset)
 			}
 
 			wordSequence.addWordEntry(text, matchStartOffset, matchEndOffset, false)
@@ -191,7 +183,7 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 			lastMatchEndOffset = matchEndOffset
 		}
 
-		addNonWordsBetween(lastMatchEndOffset, text.length)
+		addPunctuationWordsBetween(lastMatchEndOffset, text.length)
 	}
 
 	if (options.enableEastAsianPostprocessing) {
@@ -241,6 +233,87 @@ async function postprocessEastAsianWords(containingText: string, wordSequence: W
 	}
 
 	return newWordSequence
+}
+
+function buildWordSplitterRegExpForOptions(options: SegmentationOptions) {
+	const cldrSuppressionsForLang = cldrSuppressions[options.language ?? ''] ?? []
+	const contractionSuppressionsForLang = leadingApostropheContractionSuppressions[options.language ?? ''] ?? []
+	const contractionSuppressionsForLangWithSingleQuote = contractionSuppressionsForLang.map(str => str.replaceAll(`'`, `’`))
+	const customSuppressions = options.customSuppressions ?? []
+
+	let suppressions = [
+		...customSuppressions,
+		...cldrSuppressionsForLang,
+		...contractionSuppressionsForLang,
+		...contractionSuppressionsForLangWithSingleQuote,
+		...nounSuppressions,
+		...tldSuppressions,
+	]
+
+	const wordPattern = buildWordSplitterPattern([
+		...suppressions,
+		...suppressions.map(word => word.toLocaleLowerCase()),
+		...suppressions.map(word => word.toLocaleUpperCase()),
+	])
+
+	const wordSplitterRegExp = buildRegExp(wordPattern, { global: true })
+
+	return wordSplitterRegExp
+}
+
+// Add any missing punctuation words to a word sequence
+export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSequence, sourceText: string) {
+	const originalWordsReverseMapping = new Map<number, number>()
+
+	const wordSequnceWithPunctuation = new WordSequence()
+
+	function addWordEntriesForTextSlice(textSlice: string, initialCharOffset: number) {
+		let charOffset = initialCharOffset
+
+		// Add entry for every codepoint (this will correctly treat characters beyond BMP)
+		for (const char of textSlice) {
+			const charEndOffset = charOffset + char.length
+
+			const lastEntry = wordSequnceWithPunctuation.lastEntry
+
+			if (char === ' ' && lastEntry && lastEntry.isPunctuation && lastEntry.text[0] === ' ') {
+				wordSequnceWithPunctuation.lastEntry.text += ' '
+				wordSequnceWithPunctuation.lastEntry.endOffset = charEndOffset
+			} else {
+				wordSequnceWithPunctuation.addWordEntry(sourceText, charOffset, charEndOffset, true)
+			}
+
+			charOffset = charEndOffset
+		}
+	}
+
+	for (let wordIndex = 0; wordIndex < wordSequence.length; wordIndex++) {
+		const wordEntry = wordSequence.getEntryAt(wordIndex)
+		const wordStartOffset = wordEntry.startOffset
+
+		const previousWordEndOffset = wordIndex > 0 ? wordSequence.entries[wordIndex - 1].endOffset : 0
+
+		// Add entries for any punctuation characters between the current and previous word (or start)
+		if (previousWordEndOffset !== wordStartOffset) {
+			const textSlice = sourceText.substring(previousWordEndOffset, wordStartOffset)
+
+			addWordEntriesForTextSlice(textSlice, previousWordEndOffset)
+		}
+
+		wordSequnceWithPunctuation.entries.push(wordEntry)
+		originalWordsReverseMapping.set(wordSequnceWithPunctuation.length - 1, wordIndex)
+
+		// If last word, add entries for any trailing punctuation characters
+		if (wordIndex === wordSequence.length - 1) {
+			if (sourceText.length !== wordEntry.endOffset) {
+				const textSlice = sourceText.substring(wordEntry.endOffset, sourceText.length)
+
+				addWordEntriesForTextSlice(textSlice, wordEntry.endOffset)
+			}
+		}
+	}
+
+	return { wordSequnceWithPunctuation, originalWordsReverseMapping }
 }
 
 async function getIcuSegmentation() {
