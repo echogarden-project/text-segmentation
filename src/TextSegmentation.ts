@@ -265,7 +265,7 @@ function buildWordSplitterRegExpForOptions(options: SegmentationOptions) {
 export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSequence, sourceText: string) {
 	const originalWordsReverseMapping = new Map<number, number>()
 
-	const wordSequnceWithPunctuation = new WordSequence()
+	const wordSequenceWithPunctuation = new WordSequence()
 
 	function addWordEntriesForTextSlice(textSlice: string, initialCharOffset: number) {
 		let charOffset = initialCharOffset
@@ -274,13 +274,13 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 		for (const char of textSlice) {
 			const charEndOffset = charOffset + char.length
 
-			const lastEntry = wordSequnceWithPunctuation.lastEntry
+			const lastEntry = wordSequenceWithPunctuation.lastEntry
 
 			if (char === ' ' && lastEntry && lastEntry.isPunctuation && lastEntry.text[0] === ' ') {
-				wordSequnceWithPunctuation.lastEntry.text += ' '
-				wordSequnceWithPunctuation.lastEntry.endOffset = charEndOffset
+				wordSequenceWithPunctuation.lastEntry.text += ' '
+				wordSequenceWithPunctuation.lastEntry.endOffset = charEndOffset
 			} else {
-				wordSequnceWithPunctuation.addWordEntry(sourceText, charOffset, charEndOffset, true)
+				wordSequenceWithPunctuation.addWordEntry(sourceText, charOffset, charEndOffset, true)
 			}
 
 			charOffset = charEndOffset
@@ -300,8 +300,8 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 			addWordEntriesForTextSlice(textSlice, previousWordEndOffset)
 		}
 
-		wordSequnceWithPunctuation.entries.push(wordEntry)
-		originalWordsReverseMapping.set(wordSequnceWithPunctuation.length - 1, wordIndex)
+		wordSequenceWithPunctuation.entries.push(wordEntry)
+		originalWordsReverseMapping.set(wordSequenceWithPunctuation.length - 1, wordIndex)
 
 		// If last word, add entries for any trailing punctuation characters
 		if (wordIndex === wordSequence.length - 1) {
@@ -313,7 +313,7 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 		}
 	}
 
-	return { wordSequnceWithPunctuation, originalWordsReverseMapping }
+	return { wordSequenceWithPunctuation, originalWordsReverseMapping }
 }
 
 async function getIcuSegmentation() {
