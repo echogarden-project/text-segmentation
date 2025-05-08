@@ -1,4 +1,4 @@
-import { segmentText, splitToWords } from "./TextSegmentation.js"
+import { addMissingPunctuationWordsToWordSequence, SegmentationResult, segmentText, splitToWords, WordSequence } from "./TextSegmentation.js"
 import { Timer } from "./utilities/Timer.js"
 
 const log = console.log
@@ -14,15 +14,17 @@ async function test1() {
 
 	const timer = new Timer()
 
-	const result = await segmentText(text, {
-		language: 'en',
-		customSuppressions: [],
-		enableEastAsianPostprocessing: true
-	})
+	let result: SegmentationResult
 
-	//const json = JSON.stringify(result.sentences)
+	for (let i = 0; i < 3; i++) {
+		result = await segmentText(text, {
+			language: 'en',
+			customSuppressions: [],
+			enableEastAsianPostprocessing: true
+		})
 
-	timer.logAndRestart(`Total execution time`)
+		timer.logAndRestart(`Total execution time`)
+	}
 
 	log('')
 
@@ -30,8 +32,8 @@ async function test1() {
 
 	let segmentedText = ''
 
-	for (let sentenceIndex = 0; sentenceIndex < result.sentences.length; sentenceIndex++) {
-		const sentence = result.sentences[sentenceIndex]
+	for (let sentenceIndex = 0; sentenceIndex < result!.sentences.length; sentenceIndex++) {
+		const sentence = result!.sentences[sentenceIndex]
 		const phrases = sentence.phrases
 
 		for (let phraseIndex = 0; phraseIndex < phrases.length; phraseIndex++) {
@@ -44,7 +46,7 @@ async function test1() {
 			}
 		}
 
-		if (sentenceIndex < result.sentences.length - 1) {
+		if (sentenceIndex < result!.sentences.length - 1) {
 			segmentedText += `\n${ '='.repeat(100) } \n`
 		}
 	}
@@ -52,4 +54,19 @@ async function test1() {
 	writeFileSync('out/segmented.txt', segmentedText)
 }
 
+async function test2() {
+	const text = `  Hello,  how are you today                ??    `
+
+	const words = await splitToWords(text)
+
+	const nonPunctuationWordEntries = words.nonPunctuationEntries
+	const nonPunctuationWordSequence = new WordSequence()
+	nonPunctuationWordSequence.entries = nonPunctuationWordEntries
+
+	const extendedWords = addMissingPunctuationWordsToWordSequence(nonPunctuationWordSequence, text)
+
+	const x = 0
+}
+
 test1()
+//test2()
