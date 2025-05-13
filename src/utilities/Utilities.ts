@@ -31,3 +31,13 @@ export function extractSuppressions(entries: { suppression: string}[]) {
 
 	return suppressions
 }
+
+export function getShortLanguageCode(langCode: string) {
+	const dashIndex = langCode.indexOf('-')
+
+	if (dashIndex == -1) {
+		return langCode
+	}
+
+	return langCode.substring(0, dashIndex).toLowerCase()
+}
