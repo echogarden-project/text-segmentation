@@ -1,15 +1,16 @@
-import { buildRegExp } from 'regexp-composer'
-import { buildWordOrNumberPattern as buildWordSplitterPattern, phraseSeparatorRegExp, sentenceSeparatorTrailingPunctuationRegExp, sentenceSeparatorRegExp, whitespacePatternRegExp } from './Patterns.js'
-import { cldrSuppressions, leadingApostropheContractionSuppressions, nounSuppressions, tldSuppressions } from './Suppressions.js'
+import { buildWordOrNumberPattern as buildWordSplitterPattern, phraseSeparatorRegExp, sentenceSeparatorTrailingPunctuationRegExp, sentenceSeparatorRegExp, whitespacePatternRegExp, letterPatternGlobalRegExp } from './Patterns.js'
+import { cldrSuppressions, additionalSuppressions, leadingApostropheContractionSuppressions, nounSuppressions, tldSuppressions } from './Suppressions.js'
 import { eastAsianCharRangesRegExp } from './EastAsianCharacterPatterns.js'
 import { WordSequence } from './WordSequence.js'
-
-export { cldrSuppressions } from './Suppressions.js'
+import { getShortLanguageCode } from './utilities/Utilities.js'
 export { WordSequence, type WordEntry } from './WordSequence.js'
 
-export async function segmentText(text: string, options?: SegmentationOptions) {
-	options = { ...defaultSegmentationOptions, ...(options ?? {}) }
+import { buildRegExp } from 'regexp-composer'
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Exported methods
+////////////////////////////////////////////////////////////////////////////////////////////////
+export async function segmentText(text: string, options?: SegmentationOptions) {
 	const wordSequence = await splitToWords(text, options)
 
 	return segmentWordSequence(wordSequence)
@@ -18,12 +19,27 @@ export async function segmentText(text: string, options?: SegmentationOptions) {
 export async function segmentWordSequence(wordSequence: WordSequence) {
 	const sentenceWordRanges: Range[] = []
 
+	const minimumSentenceLetterCount = 2
+
 	let sentenceStartWordOffset = 0
+	let currentSentenceLetterCount = 0
 
 	for (let wordIndex = 0; wordIndex < wordSequence.length; wordIndex++) {
 		const word = wordSequence.getWordAt(wordIndex)
 
-		if (sentenceSeparatorRegExp.test(word)) {
+		if (currentSentenceLetterCount < minimumSentenceLetterCount) {
+			const matches = word.matchAll(letterPatternGlobalRegExp)
+
+			for (const match of matches) {
+				currentSentenceLetterCount += 1
+
+				if (currentSentenceLetterCount >= minimumSentenceLetterCount) {
+					break
+				}
+			}
+		}
+
+		if (currentSentenceLetterCount >= minimumSentenceLetterCount && sentenceSeparatorRegExp.test(word)) {
 			while (wordIndex < wordSequence.length - 1) {
 				const nextWord = wordSequence.getWordAt(wordIndex + 1)
 
@@ -40,6 +56,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 			})
 
 			sentenceStartWordOffset = wordIndex + 1
+			currentSentenceLetterCount = 0
 		}
 	}
 
@@ -106,7 +123,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 	}
 
 	const result: SegmentationResult = {
-		wordSequence,
+		words: wordSequence,
 		sentences,
 	}
 
@@ -121,6 +138,10 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 	}
 
 	options = { ...defaultSegmentationOptions, ...options }
+
+	if (options.language) {
+		options.language = getShortLanguageCode(options.language)
+	}
 
 	const optionsAsJson = JSON.stringify(options)
 
@@ -142,7 +163,9 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 
 		function addPunctuationWordIfNeeded() {
 			if (charOffset > punctuationWordStartOffset) {
-				wordSequence.addWordEntry(text, punctuationWordStartOffset, charOffset, true)
+				const wordText = text.substring(punctuationWordStartOffset, charOffset)
+				wordSequence.addWord(wordText, punctuationWordStartOffset, true)
+
 				punctuationWordStartOffset = charOffset
 			}
 		}
@@ -178,7 +201,8 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 				addPunctuationWordsBetween(lastMatchEndOffset, matchStartOffset)
 			}
 
-			wordSequence.addWordEntry(text, matchStartOffset, matchEndOffset, false)
+			const wordText = text.substring(matchStartOffset, matchEndOffset)
+			wordSequence.addWord(wordText, matchStartOffset, false)
 
 			lastMatchEndOffset = matchEndOffset
 		}
@@ -220,45 +244,25 @@ async function postprocessEastAsianWords(containingText: string, wordSequence: W
 			const wordBreaks = [...icuSegmentation.createWordBreakIterator(word)]
 
 			for (let i = 0; i < wordBreaks.length - 1; i++) {
-				newWordSequence.addWordEntry(
-					containingText,
-					wordStartOffset + wordBreaks[i],
-					wordStartOffset + wordBreaks[i + 1],
-					false
+				const subwordStartOffset = wordStartOffset + wordBreaks[i]
+				const subwordEndOffset = wordStartOffset + wordBreaks[i + 1]
+
+				const subwordText = containingText.substring(subwordStartOffset, subwordEndOffset)
+
+				newWordSequence.addWord(
+					subwordText,
+					subwordStartOffset,
+					false,
 				)
 			}
 		} else {
-			newWordSequence.addWordEntry(containingText, wordEntry.startOffset, wordEntry.endOffset, wordEntry.isPunctuation)
+			const wordText = containingText.substring(wordEntry.startOffset, wordEntry.endOffset)
+
+			newWordSequence.addWord(wordText, wordEntry.startOffset, wordEntry.isPunctuation)
 		}
 	}
 
 	return newWordSequence
-}
-
-function buildWordSplitterRegExpForOptions(options: SegmentationOptions) {
-	const cldrSuppressionsForLang = cldrSuppressions[options.language ?? ''] ?? []
-	const contractionSuppressionsForLang = leadingApostropheContractionSuppressions[options.language ?? ''] ?? []
-	const contractionSuppressionsForLangWithSingleQuote = contractionSuppressionsForLang.map(str => str.replaceAll(`'`, `’`))
-	const customSuppressions = options.customSuppressions ?? []
-
-	let suppressions = [
-		...customSuppressions,
-		...cldrSuppressionsForLang,
-		...contractionSuppressionsForLang,
-		...contractionSuppressionsForLangWithSingleQuote,
-		...nounSuppressions,
-		...tldSuppressions,
-	]
-
-	const wordPattern = buildWordSplitterPattern([
-		...suppressions,
-		...suppressions.map(word => word.toLocaleLowerCase()),
-		...suppressions.map(word => word.toLocaleUpperCase()),
-	])
-
-	const wordSplitterRegExp = buildRegExp(wordPattern, { global: true })
-
-	return wordSplitterRegExp
 }
 
 // Add any missing punctuation words to a word sequence
@@ -280,7 +284,9 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 				wordSequenceWithPunctuation.lastEntry.text += ' '
 				wordSequenceWithPunctuation.lastEntry.endOffset = charEndOffset
 			} else {
-				wordSequenceWithPunctuation.addWordEntry(sourceText, charOffset, charEndOffset, true)
+				const wordText = sourceText.substring(charOffset, charEndOffset)
+
+				wordSequenceWithPunctuation.addWord(wordText, charOffset, true)
 			}
 
 			charOffset = charEndOffset
@@ -316,6 +322,37 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 	return { wordSequenceWithPunctuation, originalWordsReverseMapping }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Helper methods
+////////////////////////////////////////////////////////////////////////////////////////////////
+function buildWordSplitterRegExpForOptions(options: SegmentationOptions) {
+	const cldrSuppressionsForLang = cldrSuppressions[options.language ?? ''] ?? []
+	const extendedSuppressionsForLang = additionalSuppressions[options.language ?? ''] ?? []
+	const contractionSuppressionsForLang = leadingApostropheContractionSuppressions[options.language ?? ''] ?? []
+	const contractionSuppressionsForLangWithSingleQuote = contractionSuppressionsForLang.map(str => str.replaceAll(`'`, `’`))
+	const customSuppressions = options.customSuppressions ?? []
+
+	let suppressions = [
+		...customSuppressions,
+		...cldrSuppressionsForLang,
+		...extendedSuppressionsForLang,
+		...contractionSuppressionsForLang,
+		...contractionSuppressionsForLangWithSingleQuote,
+		...nounSuppressions,
+		...tldSuppressions,
+	]
+
+	const wordPattern = buildWordSplitterPattern([
+		...suppressions,
+		...suppressions.map(word => word.toLocaleLowerCase()),
+		...suppressions.map(word => word.toLocaleUpperCase()),
+	])
+
+	const wordSplitterRegExp = buildRegExp(wordPattern, { global: true })
+
+	return wordSplitterRegExp
+}
+
 async function getIcuSegmentation() {
 	try {
 		const icuSegmentation = await import('@echogarden/icu-segmentation-wasm')
@@ -326,28 +363,31 @@ async function getIcuSegmentation() {
 	}
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Types
+////////////////////////////////////////////////////////////////////////////////////////////////
 export interface SegmentationResult {
-	wordSequence: WordSequence
+	words: WordSequence
 	sentences: Sentence[]
 }
 
 export class TextFragment {
 	wordRange: Range
-	wordSequence: WordSequence
+	words: WordSequence
 
-	constructor(wordRange: Range, wordSequence: WordSequence) {
+	constructor(wordRange: Range, words: WordSequence) {
 		this.wordRange = wordRange
-		this.wordSequence = wordSequence
+		this.words = words
 	}
 
 	get text() {
-		return this.wordSequence.text
+		return this.words.text
 	}
 
 	get charRange(): Range {
 		return {
-			start: this.wordSequence.firstEntry.startOffset,
-			end: this.wordSequence.lastEntry.endOffset
+			start: this.words.firstEntry.startOffset,
+			end: this.words.lastEntry.endOffset
 		}
 	}
 }

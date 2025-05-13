@@ -1,11 +1,12 @@
 export class WordSequence {
 	entries: WordEntry[] = []
 
-	addWordEntry(containingText: string, startOffset: number, endOffset: number, isPunctuation: boolean) {
-		const wordText = containingText.substring(startOffset, endOffset)
+	addWord(text: string, textStartOffset: number, isPunctuation: boolean) {
+		const startOffset = textStartOffset
+		const endOffset = startOffset + text.length
 
 		this.entries.push({
-			text: wordText,
+			text,
 			startOffset,
 			endOffset,
 			isPunctuation
@@ -13,7 +14,7 @@ export class WordSequence {
 	}
 
 	getWordRange(startIndex: number, endIndex: number) {
-		return [...this.iterateWordRange(startIndex, endIndex)]
+		return this.getEntryRange(startIndex, endIndex).map(entry => entry.text)
 	}
 
 	*iterateWordRange(startIndex: number, endIndex: number) {
@@ -52,7 +53,7 @@ export class WordSequence {
 		return slicedSequence
 	}
 
-	get words() {
+	get wordArray() {
 		return this.entries.map(entry => entry.text)
 	}
 
@@ -72,6 +73,14 @@ export class WordSequence {
 		return this.entries[this.length - 1]
 	}
 
+	get punctuationEntries() {
+		return this.entries.filter(entry => entry.isPunctuation === true)
+	}
+
+	get punctuationWords() {
+		return this.entries.filter(entry => entry.isPunctuation === true).map(entry => entry.text)
+	}
+
 	get nonPunctuationEntries() {
 		return this.entries.filter(entry => entry.isPunctuation === false)
 	}
@@ -81,7 +90,7 @@ export class WordSequence {
 	}
 
 	get text() {
-		return this.words.join('')
+		return this.wordArray.join('')
 	}
 
 	get length() {
@@ -91,8 +100,9 @@ export class WordSequence {
 
 export interface WordEntry {
 	text: string
-	isPunctuation: boolean
 
 	startOffset: number
 	endOffset: number
+
+	isPunctuation: boolean
 }
