@@ -1,5 +1,8 @@
-import { anyOf, buildRegExp, charRange, inputEnd, inputStart, matches, oneOrMore, possibly, repeated, tab, unicodeProperty, whitespace } from 'regexp-composer'
+import { anyOf, buildRegExp, charRange, inputEnd, inputStart, matches, oneOrMore, possibly, repeated, tab, unicodeProperty, whitespace, zeroOrMore } from 'regexp-composer'
 
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Pattern builder methods
+////////////////////////////////////////////////////////////////////////////////////////////////
 export function buildWordOrNumberPattern(suppressions: string[]) {
 	return anyOf(
 		buildSuppressionPattern(suppressions),
@@ -18,95 +21,140 @@ export function buildSuppressionPattern(suppressions: string[]) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+// Single character patterns
+////////////////////////////////////////////////////////////////////////////////////////////////
+const letterPattern = unicodeProperty('Letter')
+const markPattern = unicodeProperty('Mark')
+
+const letterOrMarkPattern = anyOf(
+	letterPattern,
+	markPattern,
+)
+
+const apostrophPattern = anyOf(`'`, `’`, `‘`)
+
+const punctuationPattern = unicodeProperty('Punctuation')
+const digitPattern = unicodeProperty('Decimal_Number')
+const arabicNumeralPattern = charRange('0', '9')
+
+const percentageCharacters = ['%']
+const currencyCharacters = ['$', '¥', '€', '£', '₩', '₭', '₽', '₫', '฿', '¢', '₮', '؋', '₦', '₱', '₴', '₪']
+
+const percentageOrCurrencyCharacterPattern = anyOf(...percentageCharacters, ...currencyCharacters)
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 // Numeric patterns
 ////////////////////////////////////////////////////////////////////////////////////////////////
-export const punctuationPattern = unicodeProperty('Punctuation')
-export const digitPattern = unicodeProperty('Decimal_Number')
-export const arabicNumeralPattern = charRange('0', '9')
-
-export const numericSeparatorPattern =
+const numericSeparatorPattern =
 	matches(
 		anyOf('.', ',', '٬', '_'), {
 		ifPrecededBy: arabicNumeralPattern,
 		ifFollowedBy: arabicNumeralPattern
 	})
 
-export const dateTimeSeparatorPattern = matches(
-	anyOf('/', '-', ':'), {
-	ifPrecededBy: arabicNumeralPattern,
-	ifFollowedBy: arabicNumeralPattern
+const dimensionsPattern = matches([
+	oneOrMore(arabicNumeralPattern),
+
+	oneOrMore([
+		'x',
+		oneOrMore(arabicNumeralPattern),
+	]),
+], {
+	ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
+	ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd)
 })
 
-export const dateTimePattern =
-	oneOrMore(anyOf(
-		arabicNumeralPattern,
-		dateTimeSeparatorPattern,
-	))
-
-export const spacedThousandsSeparatorPattern =
+const spacedThousandsSeparatorPattern =
 	matches(
 		' ', {
 		ifPrecededBy: arabicNumeralPattern,
-		ifFollowedBy: repeated(2, arabicNumeralPattern)
+		ifFollowedBy: [
+			repeated(3, arabicNumeralPattern),
+			anyOf(whitespace, punctuationPattern, inputEnd)
+		]
 	})
 
-export const numericSignPattern =
+const numericSignPattern =
 	matches(
 		anyOf('-', '+'), {
-		ifPrecededBy: anyOf(whitespace, punctuationPattern),
+		ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
 		ifFollowedBy: arabicNumeralPattern,
 	})
 
-export const numberPattern = [
-	oneOrMore(anyOf(
+const numberPattern = [
+	possibly(numericSignPattern),
+	digitPattern,
+
+	zeroOrMore(anyOf(
 		digitPattern,
 		numericSeparatorPattern,
 		spacedThousandsSeparatorPattern,
-		numericSignPattern,
-	)),
+	))
 ]
 
-const percentageChars = ['%']
-const currencySpecialChars = ['$', '¥', '€', '£', '¥', '₩', '₭', '₽', '₫', '฿', '¢', '₮', '؋', '₦', '₱', '₴', '₪']
+const exponentPattern = [
+	anyOf('e', 'E'),
+	possibly(anyOf('+', '-')),
+	oneOrMore(arabicNumeralPattern),
+]
 
-const percentageOrCurrencyPattern = anyOf(...percentageChars, ...currencySpecialChars)
+const numberPossiblyFollowedByExponentOrLettersPattern = [
+	numberPattern,
 
-export const prefixPercentageOrCurrencyPattern =
+	possibly(anyOf(
+		exponentPattern,
+
+		matches(
+			zeroOrMore(unicodeProperty('Letter')), {
+			ifNotFollowedBy: digitPattern,
+		}),
+	))
+]
+
+const precedingPercentageOrCurrencyPattern =
 	matches([
-		percentageOrCurrencyPattern,
+		percentageOrCurrencyCharacterPattern,
 		numberPattern,
 	], {
 		ifNotPrecededBy: digitPattern,
-		ifFollowedBy: anyOf(whitespace, punctuationPattern),
+		ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd),
 	})
 
-export const suffixPercentagePattern =
+const followingPercentageOrCurrencyPattern =
 	matches([
 		numberPattern,
-		percentageOrCurrencyPattern,
+		percentageOrCurrencyCharacterPattern,
 	], {
-		ifPrecededBy: anyOf(whitespace, punctuationPattern),
-		ifNotFollowedBy: digitPattern,
+		ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
+		ifNotFollowedBy: anyOf(digitPattern),
 	})
 
-export const percentagePattern = anyOf(
-	prefixPercentageOrCurrencyPattern,
-	suffixPercentagePattern
+const percentageOrCurrencyPattern = anyOf(
+	precedingPercentageOrCurrencyPattern,
+	followingPercentageOrCurrencyPattern
 )
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Time patterns
+////////////////////////////////////////////////////////////////////////////////////////////////
+const timePattern = matches([
+	anyOf(arabicNumeralPattern, [charRange('0', '1'), arabicNumeralPattern], ['2', charRange('0', '3')]),
+
+	repeated([1, 2], [
+		':',
+		anyOf(arabicNumeralPattern, [charRange('0', '5'), arabicNumeralPattern]),
+	])
+], {
+	ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
+	ifNotPrecededBy: ':',
+	ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd),
+	ifNotFollowedBy: ':',
+})
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Letter patterns
 ////////////////////////////////////////////////////////////////////////////////////////////////
-export const letterPattern = unicodeProperty('Letter')
-export const markPattern = unicodeProperty('Mark')
-export const apostrophPattern = anyOf(`'`, `’`, `‘`)
-
-export const letterOrMarkPattern = anyOf(
-	letterPattern,
-	markPattern,
-)
-
-export const dottedAbbreviationSequencePattern =
+const dottedAbbreviationSequencePattern =
 	matches(
 		anyOf(
 			[
@@ -135,23 +183,14 @@ export const dottedAbbreviationSequencePattern =
 		ifNotFollowedBy: anyOf(letterOrMarkPattern, digitPattern)
 	})
 
-
-export const wordCharacterPattern =
+const wordCharacterPattern =
 	anyOf(
 		letterPattern,
 		markPattern,
 		digitPattern,
 	)
 
-export const wordSeparatorPattern =
-	matches(
-		anyOf('-', '_', '·', '‧', '&'), {
-
-		ifPrecededBy: letterOrMarkPattern,
-		ifFollowedBy: letterOrMarkPattern
-	})
-
-export const wordInnerApostrophPattern =
+const wordInnerApostrophPattern =
 	matches(
 		apostrophPattern, {
 
@@ -159,67 +198,118 @@ export const wordInnerApostrophPattern =
 		ifFollowedBy: letterOrMarkPattern,
 	})
 
-export const wordStartApostrophPattern =
+const wordStartApostrophPattern =
 	matches(
 		apostrophPattern, {
 
 		ifPrecededBy: whitespace,
-		ifFollowedBy: [letterOrMarkPattern, letterOrMarkPattern, whitespace]
+		ifFollowedBy: [letterOrMarkPattern, letterOrMarkPattern, anyOf(whitespace, inputEnd)]
 	})
 
-export const basicWordPattern =
+const basicWordPattern =
 	oneOrMore(
 		anyOf(
 			wordCharacterPattern,
-			wordSeparatorPattern,
 			wordInnerApostrophPattern,
 		),
 	)
 
-export const wordSegmentPattern = anyOf(
+const hyphenatedWordPattern = [
+	basicWordPattern,
+
+	oneOrMore([
+		'-',
+		basicWordPattern,
+	]),
+]
+
+const dotSeparatedWordPattern = matches([
+	basicWordPattern,
+
+	oneOrMore([
+		'.',
+		basicWordPattern,
+	]),
+], {
+	//ifPrecededBy: anyOf(whitespace, inputStart),
+	//ifFollowedBy: anyOf(whitespace, inputEnd)
+})
+
+const interpunctSeparatedWordPattern = [
+	basicWordPattern,
+
+	oneOrMore([
+		anyOf('·', '‧'),
+		basicWordPattern,
+	]),
+]
+
+const underscoreSeparatedWordPattern = [
+	basicWordPattern,
+
+	oneOrMore([
+		'_',
+		basicWordPattern,
+	]),
+]
+
+const wordSegmentPattern = anyOf(
+	timePattern,
+	dimensionsPattern,
+	percentageOrCurrencyPattern,
+	numberPossiblyFollowedByExponentOrLettersPattern,
+
+	interpunctSeparatedWordPattern,
+	dotSeparatedWordPattern,
 	dottedAbbreviationSequencePattern,
-	dateTimeSeparatorPattern,
-	percentagePattern,
-	numberPattern,
+	underscoreSeparatedWordPattern,
 	basicWordPattern,
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+// Phrase separation patterns
+////////////////////////////////////////////////////////////////////////////////////////////////
+const phraseSeparatorCharacters = [',', '、', '，', '،', ';', '；', ':', '：', '—']
+
+const phraseSeparatorPattern = [
+	inputStart,
+	anyOf(...phraseSeparatorCharacters),
+	inputEnd
+]
+
+const phraseSeparatorTrailingPunctuationPattern = [
+	inputStart,
+	anyOf(...phraseSeparatorCharacters, ' ', tab),
+	inputEnd
+]
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+// Sentence separation patterns
+////////////////////////////////////////////////////////////////////////////////////////////////
+const sentenceSeparatorCharacters = ['.', '。', '?', '？', '!', '！', '\n']
+
+const sentenceSeparatorPattern = [
+	inputStart,
+	anyOf(...sentenceSeparatorCharacters),
+	inputEnd
+]
+
+const sentenceSeparatorTrailingPunctuationPattern = [
+	inputStart,
+	anyOf('"', '”', '’', ')', ']', '}', '»', ...sentenceSeparatorCharacters, ...phraseSeparatorCharacters, oneOrMore(whitespace)),
+	inputEnd
+]
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 // Prebuilt regular expressions
 ////////////////////////////////////////////////////////////////////////////////////////////////
-export const phraseSeparators = [',', '、', '，', '،', ';', '；', ':', '：', '—']
-
-export const phraseSeparatorRegExp = buildRegExp([
-	inputStart,
-	anyOf(...phraseSeparators),
-	inputEnd
-])
-
-export const sentenceSeparators = ['.', '。', '?', '？', '!', '！', '\n']
-
-export const sentenceSeparatorRegExp = buildRegExp([
-	inputStart,
-	anyOf(...sentenceSeparators),
-	inputEnd
-])
-
-export const sentenceSeparatorTrailingPunctuationRegExp = buildRegExp([
-	inputStart,
-	anyOf('"', '”', '’', ')', ']', '}', '»', ...sentenceSeparators, ...phraseSeparators, oneOrMore(whitespace)),
-	inputEnd
-])
-
-export const phraseSeparatorTrailingPunctuationRegExp = buildRegExp([
-	inputStart,
-	anyOf(...phraseSeparators, ' ', tab),
-	inputEnd
-])
-
-export const oneOrMoreSpacesRegExp = buildRegExp([
-	inputStart,
-	oneOrMore(' '),
-	inputEnd
-])
-
 export const wordCharacterRegExp = buildRegExp(wordCharacterPattern)
 export const whitespacePatternRegExp = buildRegExp(whitespace)
+
+export const letterPatternGlobalRegExp = buildRegExp(letterPattern, { global: true })
+
+export const phraseSeparatorRegExp = buildRegExp(phraseSeparatorPattern)
+export const phraseSeparatorTrailingPunctuationRegExp = buildRegExp(phraseSeparatorTrailingPunctuationPattern)
+
+export const sentenceSeparatorRegExp = buildRegExp(sentenceSeparatorPattern)
+export const sentenceSeparatorTrailingPunctuationRegExp = buildRegExp(sentenceSeparatorTrailingPunctuationPattern)
