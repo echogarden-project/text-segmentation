@@ -1,12 +1,25 @@
-import { addMissingPunctuationWordsToWordSequence, SegmentationResult, segmentText, splitToWords, WordSequence } from "./TextSegmentation.js"
+import { addMissingPunctuationWordsToWordSequence, SegmentationOptions, SegmentationResult, segmentText, segmentWordSequence, splitToWords, WordSequence } from "./TextSegmentation.js"
 import { Timer } from "./utilities/Timer.js"
 
 const log = console.log
 
 async function test1() {
 	{
-		const wordSequence = await splitToWords('Hello world! Привет мир! 你好世界！')
-		console.log(JSON.stringify(wordSequence.words))
+		//const text = 'Hello! 1. Say who? 2. How are you? This is v2.0 that good. I have 2 344 234ms C# is good games'
+		const text = 'The time is 06:12'
+		//const text = 'Hello world! 23rd? 123% 3/4/7  Привет мир! 你好世界！'
+
+		const options: SegmentationOptions = {
+			language: 'en'
+		}
+
+		const wordSequence = await splitToWords(text, options)
+
+		console.log(JSON.stringify(wordSequence.wordArray))
+
+		const segmentedText = await segmentWordSequence(wordSequence)
+
+		const x = 0
 	}
 
 	const { readFileSync, writeFileSync } = await import('fs')
@@ -16,7 +29,7 @@ async function test1() {
 
 	let result: SegmentationResult
 
-	for (let i = 0; i < 3; i++) {
+	for (let i = 0; i < 5; i++) {
 		result = await segmentText(text, {
 			language: 'en',
 			customSuppressions: [],
@@ -39,7 +52,7 @@ async function test1() {
 		for (let phraseIndex = 0; phraseIndex < phrases.length; phraseIndex++) {
 			const phrase = phrases[phraseIndex]
 
-			segmentedText += phrase.wordSequence.words.join(' | ')
+			segmentedText += phrase.words.wordArray.join(' | ')
 
 			if (phraseIndex < phrases.length - 1) {
 				segmentedText += `\n${'-'.repeat(100)}\n`
