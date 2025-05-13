@@ -30,7 +30,7 @@ npm install @echogarden/icu-segmentation-wasm
 import { splitToWords } from '@echogarden/text-segmentation'
 
 const wordSequence: WordSequence =
-  await splitToWords('Hello, world! How are you doing today?', { language: 'en' })
+	await splitToWords('Hello, world! How are you doing today?', { language: 'en' })
 
 console.log(wordSequence.words)
 ```
@@ -64,22 +64,22 @@ prints a list of objects, including metadata on each word:
 
 ```ts
 [
-  { text: 'Hello', startOffset: 0, endOffset: 5, isPunctuation: false },
-  { text: ',', startOffset: 5, endOffset: 6, isPunctuation: true },
-  { text: ' ', startOffset: 6, endOffset: 7, isPunctuation: true },
-  { text: 'world', startOffset: 7, endOffset: 12, isPunctuation: false },
-  { text: '!', startOffset: 12, endOffset: 13, isPunctuation: true },
-  { text: ' ', startOffset: 13, endOffset: 14, isPunctuation: true },
-  { text: 'How', startOffset: 14, endOffset: 17, isPunctuation: false },
-  { text: ' ', startOffset: 17, endOffset: 18, isPunctuation: true },
-  { text: 'are', startOffset: 18, endOffset: 21, isPunctuation: false },
-  { text: ' ', startOffset: 21, endOffset: 22, isPunctuation: true },
-  { text: 'you', startOffset: 22, endOffset: 25, isPunctuation: false },
-  { text: ' ', startOffset: 25, endOffset: 26, isPunctuation: true },
-  { text: 'doing', startOffset: 26, endOffset: 31, isPunctuation: false },
-  { text: ' ', startOffset: 31, endOffset: 32, isPunctuation: true },
-  { text: 'today', startOffset: 32, endOffset: 37, isPunctuation: false },
-  { text: '?', startOffset: 37, endOffset: 38, isPunctuation: true }
+	{ text: 'Hello', startOffset: 0, endOffset: 5, isPunctuation: false },
+	{ text: ',', startOffset: 5, endOffset: 6, isPunctuation: true },
+	{ text: ' ', startOffset: 6, endOffset: 7, isPunctuation: true },
+	{ text: 'world', startOffset: 7, endOffset: 12, isPunctuation: false },
+	{ text: '!', startOffset: 12, endOffset: 13, isPunctuation: true },
+	{ text: ' ', startOffset: 13, endOffset: 14, isPunctuation: true },
+	{ text: 'How', startOffset: 14, endOffset: 17, isPunctuation: false },
+	{ text: ' ', startOffset: 17, endOffset: 18, isPunctuation: true },
+	{ text: 'are', startOffset: 18, endOffset: 21, isPunctuation: false },
+	{ text: ' ', startOffset: 21, endOffset: 22, isPunctuation: true },
+	{ text: 'you', startOffset: 22, endOffset: 25, isPunctuation: false },
+	{ text: ' ', startOffset: 25, endOffset: 26, isPunctuation: true },
+	{ text: 'doing', startOffset: 26, endOffset: 31, isPunctuation: false },
+	{ text: ' ', startOffset: 31, endOffset: 32, isPunctuation: true },
+	{ text: 'today', startOffset: 32, endOffset: 37, isPunctuation: false },
+	{ text: '?', startOffset: 37, endOffset: 38, isPunctuation: true }
 ]
 ```
 
@@ -87,13 +87,13 @@ prints a list of objects, including metadata on each word:
 
 ```ts
 const result: SegmentationResult =
-  await segmentText(`Hello, world! How are you doing today?`)
+	await segmentText(`Hello, world! How are you doing today?`)
 ```
 
 `result` is a nested object containing a breakdown of sentences, phrases and words in the given text. It is described by these TypeScript types:
 ```ts
 interface SegmentationResult {
-	wordSequence: WordSequence
+	words: WordSequence
 	sentences: Sentence[]
 }
 
@@ -101,7 +101,7 @@ interface Sentence {
 	text: string
 	charRange: Range
 	wordRange: Range
-	wordSequence: WordSequence
+	words: WordSequence
 
 	phrases: Phrase[]
 }
@@ -110,7 +110,7 @@ interface Phrase {
 	text: string
 	charRange: Range
 	wordRange: Range
-	wordSequence: WordSequence
+	words: WordSequence
 }
 
 interface Range {
@@ -140,12 +140,17 @@ There are several types of accepted patterns, evaluated in this order:
 * Language-specific suppressions. For example, in English it would include abbreviations like `Mr.`, `Mrs.`, `e.g.`, `i.e`, `etc.`, or contractions like and `'cause`, `'bout` in English, `'n` in Afrikaans
 * Noun suppressions, shared in all languages, like names of brands, misc. abbreviations and programming languages. Examples: `C#`, `F#`, `C++`, `Yahoo!`, `Toys"R"Us`, `Dunkin'`, `Ke$ha`, `Sky+`, `I/O`, `A/C`, `A/V`
 * Top-level domains, like `.com`, `.org`, `.net` (also doubling as the noun `.NET` as in the ".NET framework")
-* Number patterns, consisting of a sequences of digits separated by various separator characters, like decimal separators `3.14`, `3,14`, and thousands separators like `233,421` (`,`), `233.421` (`.`) or `233 421` (` `). optional `-` or `+` signs like `-34,534.123`, `+43 345,344`
-* Date, time, and phone number patterns, consisting of digits separated by characters like `/`, `:`, `-`, like `15:23:23`, `1953/11/06`, `64-534-756`
-* Percentage patterns, which are a subset of number patterns preceded or followed by `%`, like `53.243%` or `%34.12`
+* Number patterns, consisting of a sequences of digits separated by various separator characters, like decimal separators `3.14`, `3,14`, and thousands separators like `233,421` (`,`), `233.421` (`.`) or `233 421` (` `). optional `-` or `+` signs like `-34,534.123`, `+43 345,344`, or scientific notation like `1.554e-34`
+* Time patterns like `15:12` and `06:34:23`
+* Date patterns like `10/15/2021` (currently disabled)
+* Dimension patterns like `53x545x76`
+* Percentage patterns, which are number patterns preceded or followed by `%`, like `53.243%` or `%34.12`
 * Currency patterns like `$101.25`, `€50`, `20£`, `-53.23¥`, which, like percentage patterns, are number patterns preceded or followed by a currency symbol
 * Abbreviation patterns like `Y.M.C.A`: these patterns will be automatically matched (no special suppressions needed) if there is a sequence of single `.` alternating between single letters (like `x.y.z`), optionally, there may be a space between the characters, like `x. y. z.`
-* **And finally** (but most importantly): word character sequences consisting of letter characters (Unicode category `Letter`), mark characters (Unicode category `Mark`) or digit characters (Unicode category `Decimal_Number`), which may include inner apostrophes like `'` and `’` and inner separators like `-`, `_` `·`
+* Dot connected word sequences like `abc.def.g12`
+* Underscore connected word sequence `abc_def_g12`
+* Interpunct connected word sequence `abc·def·g12`
+* **And finally**: word character sequences consisting of letter characters (Unicode category `Letter`), mark characters (Unicode category `Mark`) or digit characters (Unicode category `Decimal_Number`), which may include inner apostrophes like `'` and `’` and inner separators like `-`, `_` `·`
 
 **Current limitations**:
 * No current general identification of preceding or trailing apostrophes, like in English possessive plurals "The brothers' friend" or "The diplomats' contracts". **Reason**: this requires a large lexicon or more sophisticated language understanding, since the apostrophe is generally ambiguous with a single quote.
