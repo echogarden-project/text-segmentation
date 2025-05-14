@@ -146,6 +146,7 @@ There are several types of accepted patterns, evaluated in this order:
 * Dimension patterns like `53x545x76`
 * Percentage patterns, which are number patterns preceded or followed by `%`, like `53.243%` or `%34.12`
 * Currency patterns like `$101.25`, `€50`, `20£`, `-53.23¥`, which, like percentage patterns, are number patterns preceded or followed by a currency symbol
+* Emojis like 😄, 🎉, 👨‍👩‍👧‍👦
 * Abbreviation patterns like `Y.M.C.A`: these patterns will be automatically matched (no special suppressions needed) if there is a sequence of single `.` alternating between single letters (like `x.y.z`), optionally, there may be a space between the characters, like `x. y. z.`
 * Dot connected word sequences like `abc.def.g12`
 * Underscore connected word sequence `abc_def_g12`
