@@ -37,6 +37,8 @@ const punctuationPattern = unicodeProperty('Punctuation')
 const digitPattern = unicodeProperty('Decimal_Number')
 const arabicNumeralPattern = charRange('0', '9')
 
+const emojiPattern = unicodeProperty('Emoji')
+
 const percentageCharacters = ['%']
 const currencyCharacters = ['$', '¥', '€', '£', '₩', '₭', '₽', '₫', '฿', '¢', '₮', '؋', '₦', '₱', '₴', '₪']
 
@@ -264,6 +266,7 @@ const wordSegmentPattern = anyOf(
 	dottedAbbreviationSequencePattern,
 	underscoreSeparatedWordPattern,
 	basicWordPattern,
+	emojiPattern,
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
