@@ -261,12 +261,12 @@ const wordSegmentPattern = anyOf(
 	percentageOrCurrencyPattern,
 	numberPossiblyFollowedByExponentOrLettersPattern,
 
+	emojiPattern,
 	interpunctSeparatedWordPattern,
 	dotSeparatedWordPattern,
 	dottedAbbreviationSequencePattern,
 	underscoreSeparatedWordPattern,
 	basicWordPattern,
-	emojiPattern,
 )
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
