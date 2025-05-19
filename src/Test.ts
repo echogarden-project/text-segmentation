@@ -4,26 +4,26 @@ import { Timer } from "./utilities/Timer.js"
 const log = console.log
 
 async function test1() {
-	{
-		//const text = 'Hello! 1. Say who? 2. How are you? This is v2.0 that good. I have 2 344 234ms C# is good games'
-		const text = 'The time 🇬🇧 is 06:12. Hello 😄 ! How 🎉 are 👨‍👩‍👧‍👦 you?'
-		//const text = 'Hello world! 23rd? 123% 3/4/7  Привет мир! 你好世界！'
+	//const text = 'Hello! 1. Say who? 2. How are you? This is v2.0 that good. I have 2 344 234ms C# is good games'
+	const text = 'the 6v34abc6g6 😊😊 -43.45 x -2445.65rty the'
+	//const text = 'Hello world! 23rd? 123% 3/4/7  Привет мир! 你好世界！'
 
-		const options: SegmentationOptions = {
-			language: 'en'
-		}
-
-		const wordSequence = await splitToWords(text, options)
-
-		console.log(JSON.stringify(wordSequence.wordArray))
-
-		const segmentedText = await segmentWordSequence(wordSequence)
-
-		const x = 0
+	const options: SegmentationOptions = {
+		language: 'en'
 	}
 
+	const wordSequence = await splitToWords(text, options)
+
+	console.log(JSON.stringify(wordSequence.wordArray))
+
+	const segmentedText = await segmentWordSequence(wordSequence)
+
+	const x = 0
+}
+
+async function test2() {
 	const { readFileSync, writeFileSync } = await import('fs')
-	const text = readFileSync('test-data/Test.txt', 'utf-8')
+	const text = readFileSync('test-data/Test2.txt', 'utf-8')
 
 	const timer = new Timer()
 
@@ -60,14 +60,14 @@ async function test1() {
 		}
 
 		if (sentenceIndex < result!.sentences.length - 1) {
-			segmentedText += `\n${ '='.repeat(100) } \n`
+			segmentedText += `\n${'='.repeat(100)} \n`
 		}
 	}
 
 	writeFileSync('out/segmented.txt', segmentedText)
 }
 
-async function test2() {
+async function test3() {
 	const text = `  Hello,  how are you today                ??    `
 
 	const words = await splitToWords(text)
@@ -81,9 +81,8 @@ async function test2() {
 	const x = 0
 }
 
-async function test3() {
-	{
-		const text = `
+async function test4() {
+	const text = `
 	Hello 12/43 yo good-go bobo_baba man!
 	2.4a, 5.6 x&y x'v·y v‧z x·y·5
 	abc123 23+42.534 645
@@ -113,10 +112,10 @@ async function test3() {
 
 `
 
-		const result = (await splitToWords(text)).wordArray
-		log(result.join(' | '))
-	}
+	const result = (await splitToWords(text)).wordArray
+	log(result.join(' | '))
+
 }
 
-test1()
-//test2()
+//test1()
+test2()
