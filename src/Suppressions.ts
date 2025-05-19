@@ -10,9 +10,8 @@ export const cldrSuppressions: Record<string, string[]> = {
 }
 
 export const additionalSuppressions: Record<string, string[] > = {
-	en: [
-		'TL;DR'
-	],
+	en: ['TL;DR'],
+	th: ['ค.ศ.'],
 }
 
 export const leadingApostropheContractionSuppressions: Record<string, string[]> = {
