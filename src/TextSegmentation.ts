@@ -1,4 +1,4 @@
-import { buildWordOrNumberPattern as buildWordSplitterPattern, phraseSeparatorRegExp, sentenceSeparatorTrailingPunctuationRegExp, sentenceSeparatorRegExp, whitespacePatternRegExp, letterPatternGlobalRegExp } from './Patterns.js'
+import { buildWordOrNumberPattern as buildWordSplitterPattern, phraseSeparatorRegExp, sentenceSeparatorTrailingPunctuationCharacterRegExp, sentenceSeparatorCharacterRegExp, whitespacePatternRegExp, letterPatternGlobalRegExp, startsWithWhitespacePattern, endsWithWhitespacePattern } from './Patterns.js'
 import { cldrSuppressions, additionalSuppressions, leadingApostropheContractionSuppressions, nounSuppressions, tldSuppressions } from './Suppressions.js'
 import { eastAsianCharRangesRegExp } from './EastAsianCharacterPatterns.js'
 import { WordSequence } from './WordSequence.js'
@@ -30,7 +30,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 		if (currentSentenceLetterCount < minimumSentenceLetterCount) {
 			const matches = word.matchAll(letterPatternGlobalRegExp)
 
-			for (const match of matches) {
+			for (const _ of matches) {
 				currentSentenceLetterCount += 1
 
 				if (currentSentenceLetterCount >= minimumSentenceLetterCount) {
@@ -39,24 +39,38 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 			}
 		}
 
-		if (currentSentenceLetterCount >= minimumSentenceLetterCount && sentenceSeparatorRegExp.test(word)) {
-			while (wordIndex < wordSequence.length - 1) {
-				const nextWord = wordSequence.getWordAt(wordIndex + 1)
+		if (currentSentenceLetterCount >= minimumSentenceLetterCount && sentenceSeparatorCharacterRegExp.test(word)) {
+			let trailingSequenceEndIndex = wordIndex
+			let trailingSequenceContainedWhitespace = false
 
-				if (!sentenceSeparatorTrailingPunctuationRegExp.test(nextWord)) {
+			while (trailingSequenceEndIndex < wordSequence.length) {
+				const trailingWord = wordSequence.getWordAt(trailingSequenceEndIndex)
+
+				if (sentenceSeparatorTrailingPunctuationCharacterRegExp.test(trailingWord)) {
+					if (!trailingSequenceContainedWhitespace && whitespacePatternRegExp.test(trailingWord)) {
+						trailingSequenceContainedWhitespace = true
+					}
+
+					trailingSequenceEndIndex++
+				} else {
 					break
 				}
-
-				wordIndex += 1
 			}
 
-			sentenceWordRanges.push({
-				start: sentenceStartWordOffset,
-				end: wordIndex + 1
-			})
+			if (trailingSequenceEndIndex === wordSequence.length ||
+				trailingSequenceContainedWhitespace ||
+				['。', '？', '！'].includes(word)) {
 
-			sentenceStartWordOffset = wordIndex + 1
-			currentSentenceLetterCount = 0
+				sentenceWordRanges.push({
+					start: sentenceStartWordOffset,
+					end: trailingSequenceEndIndex
+				})
+
+				sentenceStartWordOffset = trailingSequenceEndIndex
+				currentSentenceLetterCount = 0
+
+				wordIndex = trailingSequenceEndIndex - 1
+			}
 		}
 	}
 
@@ -87,7 +101,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 				while (wordIndex < sentenceEndWordOffset - 1) {
 					const nextWord = wordSequence.getWordAt(wordIndex + 1)
 
-					if (!sentenceSeparatorTrailingPunctuationRegExp.test(nextWord)) {
+					if (!sentenceSeparatorTrailingPunctuationCharacterRegExp.test(nextWord)) {
 						break
 					}
 
@@ -320,6 +334,39 @@ export function addMissingPunctuationWordsToWordSequence(wordSequence: WordSeque
 	}
 
 	return { wordSequenceWithPunctuation, originalWordsReverseMapping }
+}
+
+function getPunctuationRanges(wordSequence: WordSequence, text: string) {
+	const punctuationRanges: Range[] = []
+	const wordEntries = wordSequence.entries
+
+	if (wordEntries[0].startOffset > 0) {
+		punctuationRanges.push({ start: 0, end: wordEntries[0].startOffset })
+	}
+
+	for (let i = 0; i < wordEntries.length; i++) {
+		const entry = wordEntries[i]
+
+		const previousEndOffset = wordEntries[i - 1]?.endOffset ?? 0
+
+		if (entry.startOffset > previousEndOffset) {
+			punctuationRanges.push({ start: previousEndOffset, end: entry.startOffset })
+		}
+
+		if (entry.isPunctuation) {
+			punctuationRanges.push({ start: entry.startOffset, end: entry.endOffset })
+		}
+	}
+
+	{
+		const lastEndOffset = wordEntries[wordEntries.length - 1]?.endOffset
+
+		if (lastEndOffset && lastEndOffset < text.length) {
+			punctuationRanges.push({ start: lastEndOffset, end: text.length })
+		}
+	}
+
+	return punctuationRanges
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////

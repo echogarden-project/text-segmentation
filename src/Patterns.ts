@@ -1,4 +1,4 @@
-import { anyOf, buildRegExp, charRange, inputEnd, inputStart, matches, oneOrMore, possibly, repeated, tab, unicodeProperty, whitespace, zeroOrMore } from 'regexp-composer'
+import { anyOf, buildRegExp, charRange, codepoint, inputEnd, inputStart, matches, oneOrMore, possibly, repeated, tab, unicodeProperty, whitespace, zeroOrMore } from 'regexp-composer'
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 // Pattern builder methods
@@ -25,19 +25,29 @@ export function buildSuppressionPattern(suppressions: string[]) {
 ////////////////////////////////////////////////////////////////////////////////////////////////
 const letterPattern = unicodeProperty('Letter')
 const markPattern = unicodeProperty('Mark')
+const digitPattern = unicodeProperty('Decimal_Number')
+const punctuationPattern = unicodeProperty('Punctuation')
+
+const apostrophPattern = anyOf(`'`, `’`, `‘`)
+const arabicNumeralPattern = charRange('0', '9')
 
 const letterOrMarkPattern = anyOf(
 	letterPattern,
 	markPattern,
 )
 
-const apostrophPattern = anyOf(`'`, `’`, `‘`)
+const letterOrMarkOrDigitPattern = anyOf(
+	letterPattern,
+	markPattern,
+	digitPattern,
+)
 
-const punctuationPattern = unicodeProperty('Punctuation')
-const digitPattern = unicodeProperty('Decimal_Number')
-const arabicNumeralPattern = charRange('0', '9')
-
-const emojiPattern = unicodeProperty('Emoji')
+// See: https://mathiasbynens.be/notes/es-unicode-property-escapes
+const emojiPattern = anyOf(
+	[unicodeProperty('Emoji_Modifier_Base'), unicodeProperty('Emoji_Modifier')],
+	unicodeProperty('Emoji_Presentation'),
+	[unicodeProperty('Emoji'), codepoint('FE0F')]
+)
 
 const percentageCharacters = ['%']
 const currencyCharacters = ['$', '¥', '€', '£', '₩', '₭', '₽', '₫', '฿', '¢', '₮', '؋', '₦', '₱', '₴', '₪']
@@ -100,18 +110,22 @@ const exponentPattern = [
 	oneOrMore(arabicNumeralPattern),
 ]
 
-const numberPossiblyFollowedByExponentOrLettersPattern = [
+const numberPossiblyFollowedByExponentOrLettersPattern = matches([
 	numberPattern,
 
 	possibly(anyOf(
 		exponentPattern,
 
 		matches(
-			zeroOrMore(unicodeProperty('Letter')), {
+			zeroOrMore(anyOf(unicodeProperty('Letter'), '_')), {
 			ifNotFollowedBy: digitPattern,
 		}),
-	))
-]
+	))], {
+
+	ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
+	ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd),
+})
+
 
 const precedingPercentageOrCurrencyPattern =
 	matches([
@@ -149,7 +163,7 @@ const timePattern = matches([
 ], {
 	ifPrecededBy: anyOf(whitespace, punctuationPattern, inputStart),
 	ifNotPrecededBy: ':',
-	ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd),
+	ifFollowedBy: anyOf(whitespace, punctuationPattern, inputEnd, 'am', 'AM', 'pm', 'PM'),
 	ifNotFollowedBy: ':',
 })
 
@@ -196,7 +210,7 @@ const wordInnerApostrophPattern =
 	matches(
 		apostrophPattern, {
 
-		ifPrecededBy: letterOrMarkPattern,
+		ifPrecededBy: letterOrMarkOrDigitPattern,
 		ifFollowedBy: letterOrMarkPattern,
 	})
 
@@ -213,6 +227,7 @@ const basicWordPattern =
 		anyOf(
 			wordCharacterPattern,
 			wordInnerApostrophPattern,
+			'_'
 		),
 	)
 
@@ -246,26 +261,17 @@ const interpunctSeparatedWordPattern = [
 	]),
 ]
 
-const underscoreSeparatedWordPattern = [
-	basicWordPattern,
-
-	oneOrMore([
-		'_',
-		basicWordPattern,
-	]),
-]
-
 const wordSegmentPattern = anyOf(
+	emojiPattern,
+
 	timePattern,
-	dimensionsPattern,
 	percentageOrCurrencyPattern,
+
+	dotSeparatedWordPattern,
 	numberPossiblyFollowedByExponentOrLettersPattern,
 
-	emojiPattern,
 	interpunctSeparatedWordPattern,
-	dotSeparatedWordPattern,
 	dottedAbbreviationSequencePattern,
-	underscoreSeparatedWordPattern,
 	basicWordPattern,
 )
 
@@ -291,7 +297,7 @@ const phraseSeparatorTrailingPunctuationPattern = [
 ////////////////////////////////////////////////////////////////////////////////////////////////
 const sentenceSeparatorCharacters = ['.', '。', '?', '？', '!', '！', '\n']
 
-const sentenceSeparatorPattern = [
+const sentenceSeparatorCharacterPattern = [
 	inputStart,
 	anyOf(...sentenceSeparatorCharacters),
 	inputEnd
@@ -304,15 +310,26 @@ const sentenceSeparatorTrailingPunctuationPattern = [
 ]
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
+// Other patterns
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+export const whitespacePattern = [inputStart, oneOrMore(whitespace), inputEnd]
+export const startsWithWhitespacePattern = [inputStart, whitespace]
+export const endsWithWhitespacePattern = [whitespace, inputEnd]
+
+////////////////////////////////////////////////////////////////////////////////////////////////
 // Prebuilt regular expressions
 ////////////////////////////////////////////////////////////////////////////////////////////////
 export const wordCharacterRegExp = buildRegExp(wordCharacterPattern)
-export const whitespacePatternRegExp = buildRegExp(whitespace)
+export const whitespacePatternRegExp = buildRegExp(whitespacePattern)
 
 export const letterPatternGlobalRegExp = buildRegExp(letterPattern, { global: true })
 
 export const phraseSeparatorRegExp = buildRegExp(phraseSeparatorPattern)
 export const phraseSeparatorTrailingPunctuationRegExp = buildRegExp(phraseSeparatorTrailingPunctuationPattern)
 
-export const sentenceSeparatorRegExp = buildRegExp(sentenceSeparatorPattern)
-export const sentenceSeparatorTrailingPunctuationRegExp = buildRegExp(sentenceSeparatorTrailingPunctuationPattern)
+export const sentenceSeparatorCharacterRegExp = buildRegExp(sentenceSeparatorCharacterPattern)
+export const sentenceSeparatorTrailingPunctuationCharacterRegExp = buildRegExp(sentenceSeparatorTrailingPunctuationPattern)
+
+export const startsWithWhitespaceRegExp = buildRegExp(startsWithWhitespacePattern)
+export const endsWithWhitespaceRegExp = buildRegExp(endsWithWhitespacePattern)
