@@ -119,9 +119,11 @@ async function test4() {
 
 async function test5() {
 	const text1 = `
-「もちろん、守銭奴剣士！」
+ただ
 
-「……さっきのソファー、返品するか」
+◆
+
+街の
 `
 
 	const text2 = `
@@ -134,7 +136,7 @@ gooooogoo
 , Hi. BOBO.
 `
 
-	const wordSequence = await splitToWords(text2)
+	const wordSequence = await splitToWords(text1)
 
 	const result = await segmentWordSequence(wordSequence)
 
@@ -144,5 +146,5 @@ gooooogoo
 }
 
 //test1()
-test2()
-//test5()
+//test2()
+test5()
