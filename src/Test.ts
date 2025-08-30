@@ -23,7 +23,7 @@ async function test1() {
 
 async function test2() {
 	const { readFileSync, writeFileSync } = await import('fs')
-	const text = readFileSync('test-data/Test2.txt', 'utf-8')
+	const text = readFileSync('test-data/Japanese3.txt', 'utf-8')
 
 	const timer = new Timer()
 
@@ -114,8 +114,35 @@ async function test4() {
 
 	const result = (await splitToWords(text)).wordArray
 	log(result.join(' | '))
+}
 
+
+async function test5() {
+	const text1 = `
+「もちろん、守銭奴剣士！」
+
+「……さっきのソファー、返品するか」
+`
+
+	const text2 = `
+Hello World. Yo!
+
+
+
+gooooogoo
+
+, Hi. BOBO.
+`
+
+	const wordSequence = await splitToWords(text2)
+
+	const result = await segmentWordSequence(wordSequence)
+
+	const sentencesText = result.sentences.map(x => x.text)
+
+	log(sentencesText.join(' \n '))
 }
 
 //test1()
 test2()
+//test5()
