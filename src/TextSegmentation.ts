@@ -111,6 +111,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 
 			if (sentenceStartWordOffset < segmentEndWordIndex) {
 				sentenceWordRanges.push({ start: sentenceStartWordOffset, end: segmentEndWordIndex })
+				segmentSentenceRanges[segmentSentenceRanges.length - 1].end += 1
 			}
 		}
 	}
