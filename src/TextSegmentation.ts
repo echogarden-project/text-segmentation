@@ -17,65 +17,102 @@ export async function segmentText(text: string, options?: SegmentationOptions) {
 }
 
 export async function segmentWordSequence(wordSequence: WordSequence) {
-	const sentenceWordRanges: Range[] = []
+	const segmentWordRanges: Range[] = []
 
-	const minimumSentenceLetterCount = 2
+	{
+		let segmentStartWordOffset = 0
+		let nonWhitespaceWordSeen = false
 
-	let sentenceStartWordOffset = 0
-	let currentSentenceLetterCount = 0
+		for (let wordIndex = 0; wordIndex < wordSequence.length; wordIndex++) {
+			const word = wordSequence.getWordAt(wordIndex)
 
-	for (let wordIndex = 0; wordIndex < wordSequence.length; wordIndex++) {
-		const word = wordSequence.getWordAt(wordIndex)
+			if (word.endsWith('\n') && nonWhitespaceWordSeen) {
+				const nextWord = wordIndex < wordSequence.length - 1 ? wordSequence.getWordAt(wordIndex + 1) : ''
 
-		if (currentSentenceLetterCount < minimumSentenceLetterCount) {
-			const matches = word.matchAll(letterPatternGlobalRegExp)
-
-			for (const _ of matches) {
-				currentSentenceLetterCount += 1
-
-				if (currentSentenceLetterCount >= minimumSentenceLetterCount) {
-					break
+				if (nextWord !== '\r' && nextWord !== '\n') {
+					segmentWordRanges.push({ start: segmentStartWordOffset, end: wordIndex + 1 })
+					segmentStartWordOffset = wordIndex + 1
 				}
+			}
+
+			if (nonWhitespaceWordSeen === false) {
+				nonWhitespaceWordSeen = !whitespacePatternRegExp.test(word)
 			}
 		}
 
-		if (currentSentenceLetterCount >= minimumSentenceLetterCount && sentenceSeparatorCharacterRegExp.test(word)) {
-			let trailingSequenceEndIndex = wordIndex
-			let trailingSequenceContainedWhitespace = false
-
-			while (trailingSequenceEndIndex < wordSequence.length) {
-				const trailingWord = wordSequence.getWordAt(trailingSequenceEndIndex)
-
-				if (sentenceSeparatorTrailingPunctuationCharacterRegExp.test(trailingWord)) {
-					if (!trailingSequenceContainedWhitespace && whitespacePatternRegExp.test(trailingWord)) {
-						trailingSequenceContainedWhitespace = true
-					}
-
-					trailingSequenceEndIndex++
-				} else {
-					break
-				}
-			}
-
-			if (trailingSequenceEndIndex === wordSequence.length ||
-				trailingSequenceContainedWhitespace ||
-				['。', '？', '！'].includes(word)) {
-
-				sentenceWordRanges.push({
-					start: sentenceStartWordOffset,
-					end: trailingSequenceEndIndex
-				})
-
-				sentenceStartWordOffset = trailingSequenceEndIndex
-				currentSentenceLetterCount = 0
-
-				wordIndex = trailingSequenceEndIndex - 1
-			}
+		if (segmentStartWordOffset < wordSequence.length) {
+			segmentWordRanges.push({ start: segmentStartWordOffset, end: wordSequence.length })
 		}
 	}
 
-	if (sentenceStartWordOffset < wordSequence.length) {
-		sentenceWordRanges.push({ start: sentenceStartWordOffset, end: wordSequence.length })
+	const sentenceWordRanges: Range[] = []
+	const segmentSentenceRanges: Range[] = []
+
+	{
+		const minimumSentenceLetterCount = 2
+
+		for (let segmentIndex = 0; segmentIndex < segmentWordRanges.length; segmentIndex++) {
+			const segmentWordRange = segmentWordRanges[segmentIndex]
+
+			const segmentStartWordIndex = segmentWordRange.start
+			const segmentEndWordIndex = segmentWordRange.end
+
+			segmentSentenceRanges.push({ start: sentenceWordRanges.length, end: sentenceWordRanges.length })
+
+			let sentenceStartWordOffset = segmentStartWordIndex
+			let currentSentenceLetterCount = 0
+
+			for (let wordIndex = segmentStartWordIndex; wordIndex < segmentEndWordIndex; wordIndex++) {
+				const word = wordSequence.getWordAt(wordIndex)
+
+				if (currentSentenceLetterCount < minimumSentenceLetterCount) {
+					const matches = word.matchAll(letterPatternGlobalRegExp)
+
+					for (const _ of matches) {
+						currentSentenceLetterCount += 1
+
+						if (currentSentenceLetterCount >= minimumSentenceLetterCount) {
+							break
+						}
+					}
+				}
+
+				if (currentSentenceLetterCount >= minimumSentenceLetterCount && sentenceSeparatorCharacterRegExp.test(word)) {
+					let trailingSequenceEndIndex = wordIndex
+					let trailingSequenceContainedWhitespace = false
+
+					while (trailingSequenceEndIndex < segmentEndWordIndex) {
+						const trailingWord = wordSequence.getWordAt(trailingSequenceEndIndex)
+
+						if (sentenceSeparatorTrailingPunctuationCharacterRegExp.test(trailingWord)) {
+							if (!trailingSequenceContainedWhitespace && whitespacePatternRegExp.test(trailingWord)) {
+								trailingSequenceContainedWhitespace = true
+							}
+
+							trailingSequenceEndIndex++
+						} else {
+							break
+						}
+					}
+
+					sentenceWordRanges.push({
+						start: sentenceStartWordOffset,
+						end: trailingSequenceEndIndex
+					})
+
+					segmentSentenceRanges[segmentSentenceRanges.length - 1].end += 1
+
+					sentenceStartWordOffset = trailingSequenceEndIndex
+					currentSentenceLetterCount = 0
+
+					wordIndex = trailingSequenceEndIndex - 1
+				}
+			}
+
+			if (sentenceStartWordOffset < segmentEndWordIndex) {
+				sentenceWordRanges.push({ start: sentenceStartWordOffset, end: segmentEndWordIndex })
+			}
+		}
 	}
 
 	const sentences: Sentence[] = []
@@ -95,7 +132,12 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 		for (let wordIndex = phraseStartWordOffset; wordIndex < sentenceEndWordOffset; wordIndex++) {
 			const currentWord = wordSequence.getWordAt(wordIndex)
 
-			if (phraseSeparatorRegExp.test(currentWord)) {
+			const isCurrentWordPhraseSeparator =
+				phraseSeparatorRegExp.test(currentWord) &&
+				((currentWord !== ':' && currentWord !== ';') ||
+				whitespacePatternRegExp.test(wordSequence.getWordAt(wordIndex + 1)))
+
+			if (isCurrentWordPhraseSeparator) {
 				let whitespaceSeenOnce = false
 
 				while (wordIndex < sentenceEndWordOffset - 1) {
@@ -139,6 +181,7 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 	const result: SegmentationResult = {
 		words: wordSequence,
 		sentences,
+		segmentSentenceRanges,
 	}
 
 	return result
@@ -416,6 +459,7 @@ async function getIcuSegmentation() {
 export interface SegmentationResult {
 	words: WordSequence
 	sentences: Sentence[]
+	segmentSentenceRanges: Range[]
 }
 
 export class TextFragment {
