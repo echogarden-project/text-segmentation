@@ -305,7 +305,7 @@ const sentenceSeparatorCharacterPattern = [
 
 const sentenceSeparatorTrailingPunctuationPattern = [
 	inputStart,
-	anyOf('"', '”', '’', ')', ']', '}', '»', ...sentenceSeparatorCharacters, ...phraseSeparatorCharacters, oneOrMore(whitespace)),
+	anyOf('"', '”', '’', ')', ']', '}', '»', '」', ...sentenceSeparatorCharacters, ...phraseSeparatorCharacters, whitespace),
 	inputEnd
 ]
 
