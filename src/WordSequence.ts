@@ -24,7 +24,7 @@ export class WordSequence {
 	}
 
 	getWordAt(index: number) {
-		return this.entries[index].text
+		return this.entries[index]?.text
 	}
 
 	getEntryRange(startIndex: number, endIndex: number) {
