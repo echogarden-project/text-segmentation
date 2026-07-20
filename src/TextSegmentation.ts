@@ -16,7 +16,9 @@ export async function segmentText(text: string, options?: SegmentationOptions) {
 	return segmentWordSequence(wordSequence)
 }
 
-export async function segmentWordSequence(wordSequence: WordSequence) {
+export async function segmentWordSequence(wordSequence: WordSequence, options?: WordSequenceSegmentationOptions) {
+	options = { ...defaultWordSequenceSegmentationOptions, ...options }
+
 	const segmentWordRanges: Range[] = []
 
 	{
@@ -135,8 +137,9 @@ export async function segmentWordSequence(wordSequence: WordSequence) {
 
 			const isCurrentWordPhraseSeparator =
 				phraseSeparatorRegExp.test(currentWord) &&
-				((currentWord !== ':' && currentWord !== ';') ||
-				whitespacePatternRegExp.test(wordSequence.getWordAt(wordIndex + 1)))
+				(!options.requireSpaceAfterColonsOrSemicolons ||
+					(currentWord !== ':' && currentWord !== ';') ||
+					whitespacePatternRegExp.test(wordSequence.getWordAt(wordIndex + 1)))
 
 			if (isCurrentWordPhraseSeparator) {
 				let whitespaceSeenOnce = false
@@ -251,7 +254,7 @@ export async function splitToWords(text: string, options?: SegmentationOptions) 
 
 	if (wordMatches) {
 		for (const match of wordMatches) {
-			const offsets = match.indices![0]
+			const offsets = match.indices![0]!
 			const matchStartOffset = offsets[0]
 			const matchEndOffset = offsets[1]
 
@@ -506,4 +509,12 @@ export const defaultSegmentationOptions: SegmentationOptions = {
 	language: '',
 	customSuppressions: [],
 	enableEastAsianPostprocessing: true,
+}
+
+export interface WordSequenceSegmentationOptions {
+	requireSpaceAfterColonsOrSemicolons: boolean
+}
+
+export const defaultWordSequenceSegmentationOptions: WordSequenceSegmentationOptions = {
+	requireSpaceAfterColonsOrSemicolons: true
 }
