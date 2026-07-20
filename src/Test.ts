@@ -119,9 +119,13 @@ async function test4() {
 
 async function test5() {
 	const text1 = `
-ただ
+A.B.C.D.E.
 
+This A.I. techonology, tells the Dr. goodbye and nothing else. Yes.
+
+ただ
 ◆
+
 
 街の
 `
@@ -130,13 +134,12 @@ async function test5() {
 Hello World. Yo!
 
 
-
 gooooogoo
 
 , Hi. BOBO.
 `
 
-	const wordSequence = await splitToWords(text1)
+	const wordSequence = await splitToWords(text1, { language: 'en' })
 
 	const result = await segmentWordSequence(wordSequence)
 
