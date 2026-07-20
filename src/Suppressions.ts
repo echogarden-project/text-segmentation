@@ -9,8 +9,8 @@ export const cldrSuppressions: Record<string, string[]> = {
 	ru: ['руб.', 'янв.', 'до н. э.', 'сент.', 'тел.', 'дек.', 'февр.', 'нояб.', 'апр.', 'н. э.', 'окт.', 'тыс.', 'авг.', 'проф.', 'н.э.', 'кв.', 'ул.', 'отд.'],
 }
 
-export const additionalSuppressions: Record<string, string[] > = {
-	en: ['TL;DR'],
+export const additionalSuppressions: Record<string, string[]> = {
+	en: ['TL;DR', 'Dr.', 'dr.', 'DR.', 'A.I.'],
 	th: ['ค.ศ.'],
 }
 
